@@ -1,4 +1,4 @@
-import os
+from io import BytesIO
 from typing import Any
 from fastapi import FastAPI, Request, Depends, Response
 import pandas as pd
@@ -10,6 +10,11 @@ from typing import List
 from sqlalchemy.orm import Session
 import json
 from fastapi.responses import HTMLResponse
+import matplotlib.pyplot as plt
+import numpy as np
+import base64
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from starlette.responses import StreamingResponse
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -74,8 +79,23 @@ def read_morbid(skip: int = 0, db: Session = Depends(get_db)):
 
 @app.route('/test', methods=("POST", "GET"))
 async def index(request: Request):
-    
     df = pd.read_sql_query("SELECT * FROM Morbid", con=engine)
     return Response(df.to_json(orient="records"), media_type="application/json")
     #return HTMLResponse(content=df.to_html(), status_code=200)
+
+
+@app.route('/graph', methods=("POST", "GET"))
+async def graph(request: Request):
+    df = pd.read_sql_query("SELECT * FROM Morbid", con=engine)
+    plot = plt.plot(df.jour, df.deuxieme_dose_cum, c="blue", marker=",")
+    plt.xticks(np.arange(0, 80, 15.0))
+    plt.xlabel("Jour")
+    plt.ylabel("Cumul du nombre de vaccinés 1ère dose")
+    plt.title("Evolution du nombre de vaccinés (1ère dose) au cours du temps")
+    plt.plot
+    buf = BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+    
 
